@@ -10,22 +10,28 @@ import Loader from './components/UI/Loader/Loader';
 import MyModal from './components/UI/MyModal/MyModal';
 import { useFetching } from './hooks/useFetching';
 import { usePosts } from './hooks/usePosts';
+import { getPageCount, getPagesArray } from './utils/pages';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
   const [filter, setFilter] = useState({ sort: "", query: "" })
   const [isOpenModal, setOpenModal] = useState(false)
+  const [totalPages, setTotalPages] = useState(0)
+  const [limit, setLimit] = useState(10)
+  const [page, setPage] = useState(1)
 
+  let pagesArray = getPagesArray(totalPages)
 
   useEffect(() => {
     fetchPosts();
-  }, [])
+  }, [page])
 
   const [fetchPosts, isPostsLoading, postError] = useFetching(async () => {
-    const posts = await PostService.getAll()
-    setPosts(posts);
+    const response = await PostService.getAll(limit, page)
+    setPosts(response.data);
+    const totalCount = response.headers['x-total-count'];
+    setTotalPages(getPageCount(totalCount, limit));
   })
-
 
   const sortedAndSearchedPosts = usePosts(posts, filter.sort, filter.query);
 
@@ -37,6 +43,10 @@ const App = () => {
     setPosts(posts.filter((item) => item.id !== post.id))
   }
 
+  const changePage = (page) => {
+    setPage(page)
+  }
+
   return (
     <div className="App">
       <MyButton style={{ marginTop: "20px" }} onClick={() => setOpenModal(true)}>create item</MyButton>
@@ -46,6 +56,13 @@ const App = () => {
       {postError && `Error, ${postError}!`}
       {isPostsLoading ? <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}><Loader /></div> :
         <PostList posts={sortedAndSearchedPosts} remove={removePost} title="Post list 1" />}
+
+      <div className="page__wrapper">
+        {pagesArray.map((p) => <span onClick={() => {
+          changePage(p)
+        }} key={p} className={page === p ? 'page page__current' : 'page'}>{p}</span>)}
+      </div>
+
     </div>
   );
 }
